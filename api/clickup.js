@@ -1,36 +1,50 @@
 export default async function handler(req, res) {
-  // Set CORS headers
-  // You can set "*" to allow any origin, or restrict to your specific domain:
+  // Set CORS headers to allow your Weebly site
   res.setHeader("Access-Control-Allow-Origin", "https://www.voluntaria.community");
   res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
-  // Handle preflight OPTIONS request
+  // Handle OPTIONS preflight requests
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
-  // Ensure you're only handling GET requests (or adjust as needed)
+  // Only allow GET requests from the client
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  // Retrieve environment variables (make sure these are set in Vercel)
+  // Get your ClickUp API configuration from environment variables
   const CLICKUP_API_TOKEN = process.env.CLICKUP_API_TOKEN;
   const TEAM_ID = process.env.CLICKUP_TEAM_ID;
-
   if (!CLICKUP_API_TOKEN || !TEAM_ID) {
     return res.status(500).json({ error: 'Missing ClickUp configuration.' });
   }
 
-  try {
-    // Fetch data from ClickUp
-    const clickupResponse = await fetch(
-      `https://api.clickup.com/api/v2/team/${TEAM_ID}/task`,
+  // Prepare the search payload to filter tasks on the "Work Party?" custom field.
+  // Replace "WORK_PARTY_CUSTOM_FIELD_ID" with your actual custom field ID.
+  const searchPayload = {
+    query: "",
+    custom_fields: [
       {
+        id: "1e7f188e-a855-4fb2-82b5-88802b4c3962", 
+        operator: "in",
+        value: ["Feb 2025", "BEFORE NEXT"]
+      }
+    ]
+  };
+
+  try {
+    // Call the ClickUp search endpoint so that only matching tasks are returned.
+    const clickupResponse = await fetch(
+      `https://api.clickup.com/api/v2/team/${TEAM_ID}/task/search`,
+      {
+        method: "POST",
         headers: {
-          'Authorization': CLICKUP_API_TOKEN,
+          "Authorization": CLICKUP_API_TOKEN,
+          "Content-Type": "application/json"
         },
+        body: JSON.stringify(searchPayload)
       }
     );
 
