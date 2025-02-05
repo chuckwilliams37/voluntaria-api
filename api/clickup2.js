@@ -21,24 +21,20 @@ export default async function handler(req, res) {
 
   const filteredTasks = tasks.filter(task => {
     if (task.custom_fields && Array.isArray(task.custom_fields)) {
-      // Look for the "Work Party?" field (trimming to remove accidental whitespace)
+      // Look for the "Work Party?" field, trimming to be safe
       const wpField = task.custom_fields.find(field => field.name.trim() === "Work Party?");
       if (wpField) {
-        // Try to use value_text first
-        let fieldValue = wpField.value_text;
+        let fieldValue = wpField.value_text; // Try the human-readable value first
         
-        // If value_text is not available, check if there is a value (likely an option ID)
-        if (!fieldValue && wpField.value) {
-          const selectedOptionId = wpField.value;
-          if (wpField.type_config && Array.isArray(wpField.type_config.options)) {
-            const selectedOption = wpField.type_config.options.find(opt => opt.id === selectedOptionId);
-            if (selectedOption) {
-              fieldValue = selectedOption.name;
-            }
+        // If not available, check if value is set as a number (i.e. an index into the options array)
+        if (!fieldValue && typeof wpField.value === 'number') {
+          const index = wpField.value;
+          if (wpField.type_config && Array.isArray(wpField.type_config.options) && index >= 0 && index < wpField.type_config.options.length) {
+            fieldValue = wpField.type_config.options[index].name;
           }
         }
         
-        // If we got a value, normalize it and compare
+        // If fieldValue is now set, normalize it and check if it matches our criteria
         if (fieldValue) {
           const normalized = fieldValue.trim().toLowerCase();
           return normalized === "feb 2025" || normalized === "before next";
@@ -47,15 +43,7 @@ export default async function handler(req, res) {
     }
     return false;
   });
+  
 
-//   // Return only the filtered tasks
-//   const sample = tasks.slice(0, 5).map(task => ({
-//     id: task.id,
-//     name: task.name,
-//     custom_fields: task.custom_fields,
-//   }));
-    const tasksWithWP = tasks.filter(task => {
-        return task.custom_fields && task.custom_fields.some(field => field.name.trim() === "Work Party?");
-    });
-    return res.status(200).json({ tasks: tasksWithWP });
+  return res.status(200).json({ tasks: filteredTasks });
 }
