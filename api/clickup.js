@@ -35,25 +35,10 @@ export default async function handler(req, res) {
     }
 
     const data = await response.json();
-    // Assuming tasks are in data.tasks; adjust if needed
     const tasks = data.tasks || [];
 
-    // Filter tasks based on the "Work Party?" custom field
-    const filteredTasks = tasks.filter(task => {
-      if (task.custom_fields && Array.isArray(task.custom_fields)) {
-        // Find the custom field named "Work Party?"
-        const workPartyField = task.custom_fields.find(field => field.name === "Work Party?");
-        if (workPartyField) {
-          // Check the value (it might be stored in `value` or `value_text`)
-          const fieldValue = workPartyField.value || workPartyField.value_text;
-          return fieldValue === "Feb 2025" || fieldValue === "BEFORE NEXT";
-        }
-      }
-      return false;
-    });
-
-    // Return the filtered tasks
-    return res.status(200).json({ tasks: filteredTasks });
+    // For debugging: return the raw tasks data so you can inspect the custom_fields structure
+    return res.status(200).json({ tasks });
   } catch (error) {
     console.error("Error fetching tasks:", error);
     return res.status(500).json({ error: 'Error fetching data from ClickUp.' });
