@@ -54,6 +54,8 @@ export default async function handler(req, res) {
 //     name: task.name,
 //     custom_fields: task.custom_fields,
 //   }));
-
-  return res.status(200).json({ tasks: filteredTasks });
+    const tasksWithWP = tasks.filter(task => {
+        return task.custom_fields && task.custom_fields.some(field => field.name.trim() === "Work Party?");
+    });
+    return res.status(200).json({ tasks: tasksWithWP });
 }
