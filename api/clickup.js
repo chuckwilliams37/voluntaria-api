@@ -4,15 +4,19 @@ const rawData = require('../data/tasks.json');
 
 export default async function handler(req, res) {
   // Set CORS headers
+
   res.setHeader("Access-Control-Allow-Origin", "https://www.voluntaria.community");
   res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  
+  // Disable caching
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
 
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method Not Allowed" });
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   const tasks = rawData.tasks || [];

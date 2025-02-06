@@ -1,0 +1,130 @@
+<style>
+  /* Basic table styles */
+  #tasks-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: Arial, sans-serif;
+  }
+  #tasks-table th, #tasks-table td {
+    border: 1px solid #36454F; /* Charcoal */
+    padding: 8px;
+    text-align: left;
+  }
+  #tasks-table th {
+    background-color: #008000; /* Green */
+    color: white;
+  }
+  /* Alternate row background for clarity */
+  #tasks-table tr:nth-child(even) {
+    background-color: #FFD700; /* Yellow */
+  }
+  /* Group header row */
+  #tasks-table tr.group-header td {
+    background-color: #36454F; /* Charcoal */
+    color: white;
+    font-weight: bold;
+  }
+</style>
+
+<div id="clickup-widget">
+  <h2>Prioritized Work Party 2025 Tasks <br />(last updated: <span id="last-updated"></span>)</h2>
+  <div id="table-container"></div>
+</div>
+
+<script>
+// Helper function to extract a custom field value (for drop_down fields)
+
+
+function getCustomFieldValue(task, fieldName) {
+  if (!task.custom_fields) return null;
+  const field = task.custom_fields.find(f => f.name.trim() === fieldName);
+  if (!field) return null;
+  // If a human-readable value is provided (value_text), use it.
+  if (field.value_text) {
+    return field.value_text.trim();
+  }
+  // Otherwise, if "value" is a number, treat it as an index into the options array.
+  if (typeof field.value === "number" && field.type_config && Array.isArray(field.type_config.options)) {
+    const idx = field.value;
+    if (idx >= 0 && idx < field.type_config.options.length) {
+      return field.type_config.options[idx].name.trim();
+    }
+  }
+  return null;
+}
+
+// Helper to get the numeric sort value from the "Order!" field.
+// If the extracted value is numeric, return that number; otherwise, return a very high number.
+function getOrderValue(task) {
+  const orderVal = getCustomFieldValue(task, "Order!");
+  if (orderVal === null) return Infinity;
+  const num = parseInt(orderVal, 10);
+  return isNaN(num) ? Infinity : num;
+}
+
+// Main function to render the table.
+document.addEventListener("DOMContentLoaded", function() {
+  // Fetch tasks from your Vercel endpoint.
+  fetch('https://api.voluntaria.community/api/clickup')
+    .then(response => response.json())
+    .then(data => {
+      const tasks = data.tasks || [];
+      
+      // Group tasks by the "Area" custom field.
+      // If a task does not have an "Area" value, use "Uncategorized"
+
+        // Calculate the most recent date_updated.
+        // Ensure we convert date_updated from string to number.
+        const mostRecentTimestamp = Math.max(...tasks.map(task => Number(task.date_updated) || 0));
+        const mostRecentDate = new Date(mostRecentTimestamp).toLocaleString();
+        document.getElementById("last-updated").innerText = "Last updated: " + mostRecentDate;
+
+      const groups = {};
+      tasks.forEach(task => {
+        const area = getCustomFieldValue(task, "Area") || "Uncategorized";
+        if (!groups[area]) {
+          groups[area] = [];
+        }
+        groups[area].push(task);
+      });
+      
+      // Sort the group keys alphabetically.
+      const groupKeys = Object.keys(groups).sort();
+      
+      // For each group, sort tasks by the Order! field.
+      groupKeys.forEach(key => {
+        groups[key].sort((a, b) => getOrderValue(a) - getOrderValue(b));
+      });
+      
+      // Build the HTML table.
+      let html = '<table id="tasks-table">';
+      html += '<thead><tr><th>Priority</th><th>Task</th></tr></thead>';
+      html += '<tbody>';
+      
+      // For each group, output a header row and then each task row.
+      groupKeys.forEach(area => {
+        // Group header row spanning all columns.
+        html += `<tr class="group-header"><td colspan="2">${area}</td></tr>`;
+        groups[area].forEach(task => {
+          // Get the Order! value for display.
+          let orderValue = getCustomFieldValue(task, "Order!");
+          if (orderValue === null) orderValue = "";
+          
+          html += `<tr>`;
+          html += `<td>${orderValue}</td>`;
+          html += `<td>${task.name}</td>`;
+          html += `</tr>`;
+        });
+      });
+      
+      html += '</tbody></table>';
+      
+      // Insert the table into the container.
+      document.getElementById("table-container").innerHTML = html;
+    })
+    .catch(error => {
+      console.error("Error fetching tasks:", error);
+      document.getElementById("table-container").innerHTML = "<p>Error loading tasks.</p>";
+    });
+});
+</script>
