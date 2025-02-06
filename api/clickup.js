@@ -1,53 +1,48 @@
-// api/clickup.js
-
-const rawData = require('../data/tasks.json');
-
 export default async function handler(req, res) {
-  // Set CORS headers
-
+  // Set CORS headers to allow your Weebly site to access the endpoint.
   res.setHeader("Access-Control-Allow-Origin", "https://www.voluntaria.community");
-  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  
-  // Disable caching
+  // Prevent caching at client and intermediary layers.
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
 
+  // Handle preflight OPTIONS requests.
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
+
+  // Only allow GET requests.
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method Not Allowed" });
   }
 
-  const tasks = rawData.tasks || [];
-  
-  // For debugging: return only a sample of tasks with their custom fields
+  // Retrieve ClickUp API configuration from environment variables.
+  const CLICKUP_API_TOKEN = process.env.CLICKUP_API_TOKEN;
+  const TEAM_ID = process.env.CLICKUP_TEAM_ID;
+  if (!CLICKUP_API_TOKEN || !TEAM_ID) {
+    return res.status(500).json({ error: "Missing ClickUp configuration." });
+  }
 
-  const filteredTasks = tasks.filter(task => {
-    if (task.custom_fields && Array.isArray(task.custom_fields)) {
-      // Look for the "Work Party?" field, trimming to be safe
-      const wpField = task.custom_fields.find(field => field.name.trim() === "Work Party?");
-      if (wpField) {
-        let fieldValue = wpField.value_text; // Try the human-readable value first
-        
-        // If not available, check if value is set as a number (i.e. an index into the options array)
-        if (!fieldValue && typeof wpField.value === 'number') {
-          const index = wpField.value;
-          if (wpField.type_config && Array.isArray(wpField.type_config.options) && index >= 0 && index < wpField.type_config.options.length) {
-            fieldValue = wpField.type_config.options[index].name;
-          }
-        }
-        
-        // If fieldValue is now set, normalize it and check if it matches our criteria
-        if (fieldValue) {
-          const normalized = fieldValue.trim().toLowerCase();
-          return normalized === "feb 2025" || normalized === "before next";
-        }
-      }
+  try {
+    // Fetch live tasks from ClickUp API v2 listing endpoint.
+    const response = await fetch(`https://api.clickup.com/api/v2/team/${TEAM_ID}/task`, {
+      headers: {
+        "Authorization": CLICKUP_API_TOKEN,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return res.status(response.status).json({ error: errorText });
     }
-    return false;
-  });
-  
 
-  return res.status(200).json({ tasks: filteredTasks });
+    const data = await response.json();
+    
+    // (Optional) You can add filtering or processing logic here if needed.
+    
+    return res.status(200).json(data);
+  } catch (error) {
+    console.error("Error fetching from ClickUp:", error);
+    return res.status(500).json({ error: "Error fetching data from ClickUp." });
+  }
 }
