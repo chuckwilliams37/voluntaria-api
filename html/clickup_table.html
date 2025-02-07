@@ -65,7 +65,7 @@ function getOrderValue(task) {
 // Main function to render the table.
 document.addEventListener("DOMContentLoaded", function() {
   // Fetch tasks from your Vercel endpoint.
-  fetch('https://api.voluntaria.community/api/clickup')
+  fetch('https://api.voluntaria.community/api/clickup?ts=' + new Date().getTime(), { cache: "no-store" })
     .then(response => response.json())
     .then(data => {
       const tasks = data.tasks || [];

@@ -3,7 +3,7 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "https://www.voluntaria.community");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  // Prevent caching at client and intermediary layers.
+  // Prevent caching.
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
 
   // Handle preflight OPTIONS requests.
@@ -24,7 +24,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Fetch live tasks from ClickUp API v2 listing endpoint.
+    // Fetch live tasks from the ClickUp API v2 listing endpoint.
     const response = await fetch(`https://api.clickup.com/api/v2/team/${TEAM_ID}/task`, {
       headers: {
         "Authorization": CLICKUP_API_TOKEN,
@@ -37,10 +37,36 @@ export default async function handler(req, res) {
     }
 
     const data = await response.json();
-    
-    // (Optional) You can add filtering or processing logic here if needed.
-    
-    return res.status(200).json(data);
+    const tasks = data.tasks || [];
+
+    // Filter tasks based on the "Work Party?" field.
+    // We assume that "Work Party?" is a drop-down field where the selected value is stored as a number.
+    // That number is used as an index into the field's type_config.options array.
+    const filteredTasks = tasks.filter(task => {
+      if (task.custom_fields && Array.isArray(task.custom_fields)) {
+        // Look for the custom field named "Work Party?"
+        const wpField = task.custom_fields.find(field => field.name.trim() === "Work Party?");
+        if (wpField) {
+          let fieldValue = wpField.value_text;  // Try using a human-readable value first.
+          // If no value_text, check if a numeric value is set.
+          if (!fieldValue && typeof wpField.value === "number") {
+            const idx = wpField.value;
+            if (wpField.type_config && Array.isArray(wpField.type_config.options) && idx >= 0 && idx < wpField.type_config.options.length) {
+              fieldValue = wpField.type_config.options[idx].name;
+            }
+          }
+          if (fieldValue) {
+            // Normalize the field value to lowercase for comparison.
+            const normalized = fieldValue.trim().toLowerCase();
+            return normalized === "feb 2025" || normalized === "before next";
+          }
+        }
+      }
+      return false;
+    });
+
+    // Return the filtered tasks.
+    return res.status(200).json({ tasks: filteredTasks });
   } catch (error) {
     console.error("Error fetching from ClickUp:", error);
     return res.status(500).json({ error: "Error fetching data from ClickUp." });
