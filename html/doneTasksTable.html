@@ -91,7 +91,7 @@
     document.addEventListener("DOMContentLoaded", function() {
       // Use your live API URL with flags to include completed tasks.
       // (Adjust the URL if needed.)
-      const endpoint = "https://api.clickup.com/api/v2/team/9017099981/task?include_closed=true&statuses[]=complete&ts=" + new Date().getTime();
+      const endpoint = "https://api.voluntaria.community/api/doneTasks?ts=" + new Date().getTime();
       fetch(endpoint, { cache: "no-store" })
         .then(response => response.json())
         .then(data => {
