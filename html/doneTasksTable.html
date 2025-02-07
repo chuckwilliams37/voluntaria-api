@@ -22,30 +22,30 @@
     }
     
     /* Table styling */
-    #completed-table {
+    #done-tasks-table {
       width: 100%;
       border-collapse: collapse;
       font-family: Arial, sans-serif;
       margin-top: 10px;
     }
-    #completed-table th, #completed-table td {
+    #done-tasks-table th, #done-tasks-table td {
       border: 1px solid #36454F; /* Charcoal */
       padding: 8px;
       text-align: left;
     }
-    #completed-table th {
+    #done-tasks-table th {
       background-color: #008000; /* Green */
       color: white;
     }
-    #completed-table tr:nth-child(even) {
+    #done-tasks-table tr:nth-child(even) {
       background-color: #FFD700; /* Yellow */
     }
   </style>
   
-  <div id="completed-tasks-widget">
+  <div id="done-tasks-widget">
     <button class="collapsible">Completed Tasks (Most Recent on Top)</button>
     <div class="content">
-      <div id="completed-table-container">Loading completed tasks…</div>
+      <div id="done-tasks-table-container">Loading completed tasks…</div>
     </div>
   </div>
   
@@ -57,20 +57,10 @@
         coll[i].addEventListener("click", function() {
           this.classList.toggle("active");
           var content = this.nextElementSibling;
-          if (content.style.display === "block") {
-            content.style.display = "none";
-          } else {
-            content.style.display = "block";
-          }
+          content.style.display = (content.style.display === "block") ? "none" : "block";
         });
       }
     });
-  
-    // Helper: Extract the first name from a full name (split by space)
-    function getFirstName(fullName) {
-      if (!fullName) return "";
-      return fullName.trim().split(" ")[0];
-    }
   
     // Helper: Format a timestamp (assumed in milliseconds) as a locale string.
     function formatTimestamp(ts) {
@@ -78,63 +68,72 @@
       return new Date(Number(ts)).toLocaleString();
     }
   
-    // Helper: Convert time_estimate (assumed to be in milliseconds) to hours.
+    // Helper: Convert time_estimate (milliseconds) to hours.
     function formatTimeEstimate(ms) {
       if (!ms || isNaN(ms)) return "";
       const hours = Number(ms) / 3600000; // 3,600,000 ms per hour
       return hours.toFixed(2) + " hrs";
     }
   
-    // Fetch completed tasks from your API endpoint and render them.
+    // Helper: Get the first name from a full name.
+    function getFirstName(fullName) {
+      if (!fullName) return "";
+      return fullName.trim().split(" ")[0];
+    }
+  
+    // Helper: Render the array of assignees as a comma-separated list of first names.
+    function renderAssignees(assignees) {
+      if (!assignees || assignees.length === 0) return "";
+      return assignees.map(a => getFirstName(a.username)).join(", ");
+    }
+  
+    // Fetch completed tasks from the live API.
     document.addEventListener("DOMContentLoaded", function() {
-      // Append a timestamp to bypass any caching
-      const endpoint = 'https://api.voluntaria.community/api/doneTasks?ts=' + new Date().getTime();
+      // Use your live API URL with flags to include completed tasks.
+      // (Adjust the URL if needed.)
+      const endpoint = "https://api.clickup.com/api/v2/team/9017099981/task?include_closed=true&statuses[]=complete&ts=" + new Date().getTime();
       fetch(endpoint, { cache: "no-store" })
         .then(response => response.json())
         .then(data => {
           const tasks = data.tasks || [];
-          // Sort tasks by date_done descending (most recent first)
+          // Sort tasks so the most recent completed tasks (based on date_done) appear on top.
           tasks.sort((a, b) => Number(b.date_done || 0) - Number(a.date_done || 0));
   
-          // Build the HTML table.
-          let html = '<table id="completed-table">';
+          let html = '<table id="done-tasks-table">';
           html += '<thead><tr>';
           html += '<th>Completed On</th>';
           html += '<th>Task Name</th>';
           html += '<th>Time Logged</th>';
-          html += '<th>Assignee</th>';
+          html += '<th>Assignees</th>';
+          html += '<th>Creator</th>';
           html += '</tr></thead><tbody>';
   
-          tasks.forEach(task => {
-            // Use date_done as the completed date.
-            const completedOn = formatTimestamp(task.date_done);
-            const taskName = task.name || "";
-            // Use time_estimate if available.
-            const timeLogged = formatTimeEstimate(task.time_estimate);
-            // Extract the first assignee's first name if available.
-            let assigneeFirstName = "";
-            if (task.assignees && task.assignees.length > 0) {
-              assigneeFirstName = getFirstName(task.assignees[0].username);
-            }
-  
-            html += '<tr>';
-            html += `<td>${completedOn}</td>`;
-            html += `<td>${taskName}</td>`;
-            html += `<td>${timeLogged}</td>`;
-            html += `<td>${assigneeFirstName}</td>`;
-            html += '</tr>';
-          });
-          html += '</tbody></table>';
-  
-          // If there are no completed tasks, show a friendly message.
           if (tasks.length === 0) {
-            html = "<p>No completed tasks found.</p>";
+            html += '<tr><td colspan="5">No completed tasks found.</td></tr>';
+          } else {
+            tasks.forEach(task => {
+              const completedOn = formatTimestamp(task.date_done);
+              const taskName = task.name || "";
+              const timeLogged = formatTimeEstimate(task.time_estimate);
+              const assignees = renderAssignees(task.assignees);
+              const creator = task.creator ? getFirstName(task.creator.username) : "";
+  
+              html += '<tr>';
+              html += `<td>${completedOn}</td>`;
+              html += `<td>${taskName}</td>`;
+              html += `<td>${timeLogged}</td>`;
+              html += `<td>${assignees}</td>`;
+              html += `<td>${creator}</td>`;
+              html += '</tr>';
+            });
           }
-          document.getElementById("completed-table-container").innerHTML = html;
+  
+          html += '</tbody></table>';
+          document.getElementById("done-tasks-table-container").innerHTML = html;
         })
         .catch(error => {
           console.error("Error fetching completed tasks:", error);
-          document.getElementById("completed-table-container").innerHTML = "<p>Error loading completed tasks.</p>";
+          document.getElementById("done-tasks-table-container").innerHTML = "<p>Error loading completed tasks.</p>";
         });
     });
   </script>

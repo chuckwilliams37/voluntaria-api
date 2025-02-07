@@ -24,7 +24,9 @@ export default async function handler(req, res) {
     
     try {
       // Append ?archived=true to include completed tasks.
-      const apiUrl = `https://api.clickup.com/api/v2/team/${TEAM_ID}/task?archived=true&include_closed=true&statuses[]=complete`;
+
+      
+      const apiUrl = `https://api.clickup.com/api/v2/team/${TEAM_ID}/task?include_closed=true&statuses[]=complete&ts=${new Date().getTime()}`;
       const response = await fetch(apiUrl, {
         headers: {
           "Authorization": CLICKUP_API_TOKEN,
