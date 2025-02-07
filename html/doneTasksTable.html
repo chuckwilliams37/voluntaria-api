@@ -1,0 +1,141 @@
+<style>
+    /* Collapsible container styling */
+    .collapsible {
+      background-color: #36454F; /* Charcoal */
+      color: white;
+      cursor: pointer;
+      padding: 10px;
+      width: 100%;
+      border: none;
+      text-align: left;
+      outline: none;
+      font-size: 18px;
+      margin-bottom: 5px;
+    }
+    .collapsible.active, .collapsible:hover {
+      background-color: #008000; /* Green */
+    }
+    .content {
+      padding: 0 10px;
+      display: none;
+      overflow: hidden;
+    }
+    
+    /* Table styling */
+    #completed-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: Arial, sans-serif;
+      margin-top: 10px;
+    }
+    #completed-table th, #completed-table td {
+      border: 1px solid #36454F; /* Charcoal */
+      padding: 8px;
+      text-align: left;
+    }
+    #completed-table th {
+      background-color: #008000; /* Green */
+      color: white;
+    }
+    #completed-table tr:nth-child(even) {
+      background-color: #FFD700; /* Yellow */
+    }
+  </style>
+  
+  <div id="completed-tasks-widget">
+    <button class="collapsible">Completed Tasks (Most Recent on Top)</button>
+    <div class="content">
+      <div id="completed-table-container">Loading completed tasks…</div>
+    </div>
+  </div>
+  
+  <script>
+    // Toggle the collapsible content on click.
+    document.addEventListener("DOMContentLoaded", function() {
+      var coll = document.getElementsByClassName("collapsible");
+      for (var i = 0; i < coll.length; i++) {
+        coll[i].addEventListener("click", function() {
+          this.classList.toggle("active");
+          var content = this.nextElementSibling;
+          if (content.style.display === "block") {
+            content.style.display = "none";
+          } else {
+            content.style.display = "block";
+          }
+        });
+      }
+    });
+  
+    // Helper: Extract the first name from a full name (split by space)
+    function getFirstName(fullName) {
+      if (!fullName) return "";
+      return fullName.trim().split(" ")[0];
+    }
+  
+    // Helper: Format a timestamp (assumed in milliseconds) as a locale string.
+    function formatTimestamp(ts) {
+      if (!ts) return "";
+      return new Date(Number(ts)).toLocaleString();
+    }
+  
+    // Helper: Convert time_estimate (assumed to be in milliseconds) to hours.
+    function formatTimeEstimate(ms) {
+      if (!ms || isNaN(ms)) return "";
+      const hours = Number(ms) / 3600000; // 3,600,000 ms per hour
+      return hours.toFixed(2) + " hrs";
+    }
+  
+    // Fetch completed tasks from your API endpoint and render them.
+    document.addEventListener("DOMContentLoaded", function() {
+      // Append a timestamp to bypass any caching
+      const endpoint = 'https://api.voluntaria.community/api/doneTasks?ts=' + new Date().getTime();
+      fetch(endpoint, { cache: "no-store" })
+        .then(response => response.json())
+        .then(data => {
+          const tasks = data.tasks || [];
+          // Sort tasks by date_done descending (most recent first)
+          tasks.sort((a, b) => Number(b.date_done || 0) - Number(a.date_done || 0));
+  
+          // Build the HTML table.
+          let html = '<table id="completed-table">';
+          html += '<thead><tr>';
+          html += '<th>Completed On</th>';
+          html += '<th>Task Name</th>';
+          html += '<th>Time Logged</th>';
+          html += '<th>Assignee</th>';
+          html += '</tr></thead><tbody>';
+  
+          tasks.forEach(task => {
+            // Use date_done as the completed date.
+            const completedOn = formatTimestamp(task.date_done);
+            const taskName = task.name || "";
+            // Use time_estimate if available.
+            const timeLogged = formatTimeEstimate(task.time_estimate);
+            // Extract the first assignee's first name if available.
+            let assigneeFirstName = "";
+            if (task.assignees && task.assignees.length > 0) {
+              assigneeFirstName = getFirstName(task.assignees[0].username);
+            }
+  
+            html += '<tr>';
+            html += `<td>${completedOn}</td>`;
+            html += `<td>${taskName}</td>`;
+            html += `<td>${timeLogged}</td>`;
+            html += `<td>${assigneeFirstName}</td>`;
+            html += '</tr>';
+          });
+          html += '</tbody></table>';
+  
+          // If there are no completed tasks, show a friendly message.
+          if (tasks.length === 0) {
+            html = "<p>No completed tasks found.</p>";
+          }
+          document.getElementById("completed-table-container").innerHTML = html;
+        })
+        .catch(error => {
+          console.error("Error fetching completed tasks:", error);
+          document.getElementById("completed-table-container").innerHTML = "<p>Error loading completed tasks.</p>";
+        });
+    });
+  </script>
+  
