@@ -43,14 +43,14 @@ export default async function handler(req, res) {
       // We'll consider a task "done" if:
       //  - Its date_done is set (non-null, non-empty)
       //  OR its status.status (after trimming and lowercasing) is "done", "closed", or "completed".
-      const doneTasks = tasks.filter(task => {
-        const hasDateDone = task.date_done && task.date_done !== "" && task.date_done !== "null";
-        const statusStr = task.status && task.status.status ? task.status.status.trim().toLowerCase() : "";
-        const statusDone = statusStr === "done" || statusStr === "closed" || statusStr === "completed";
-        return hasDateDone || statusDone;
-      });
+    //   const doneTasks = tasks.filter(task => {
+    //     const hasDateDone = task.date_done && task.date_done !== "" && task.date_done !== "null";
+    //     const statusStr = task.status && task.status.status ? task.status.status.trim().toLowerCase() : "";
+    //     const statusDone = statusStr === "done" || statusStr === "closed" || statusStr === "completed";
+    //     return hasDateDone || statusDone;
+    //   });
     
-      return res.status(200).json({ tasks: doneTasks });
+      return res.status(200).json({ tasks });
     } catch (error) {
       console.error("Error fetching done tasks:", error);
       return res.status(500).json({ error: "Error fetching data from ClickUp." });
