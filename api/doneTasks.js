@@ -3,6 +3,7 @@ export default async function handler(req, res) {
     res.setHeader("Access-Control-Allow-Origin", "https://www.voluntaria.community");
     res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    // Prevent caching.
     res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   
     // Handle preflight OPTIONS requests.
@@ -14,16 +15,17 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: "Method Not Allowed" });
     }
     
-    // Retrieve ClickUp API configuration.
+    // Retrieve ClickUp API configuration from environment variables.
     const CLICKUP_API_TOKEN = process.env.CLICKUP_API_TOKEN;
-    const TEAM_ID = process.env.CLICKUP_TEAM_ID; // Ensure this is the correct Voluntaria space ID.
+    const TEAM_ID = process.env.CLICKUP_TEAM_ID; // Ensure this is the Voluntaria space ID.
     if (!CLICKUP_API_TOKEN || !TEAM_ID) {
       return res.status(500).json({ error: "Missing ClickUp configuration." });
     }
     
     try {
-      // Fetch tasks from the ClickUp API v2 listing endpoint.
-      const response = await fetch(`https://api.clickup.com/api/v2/team/${TEAM_ID}/task`, {
+      // Append ?archived=true to include completed tasks.
+      const apiUrl = `https://api.clickup.com/api/v2/team/${TEAM_ID}/task?archived=true&include_closed=true&statuses[]=complete`;
+      const response = await fetch(apiUrl, {
         headers: {
           "Authorization": CLICKUP_API_TOKEN,
         },
@@ -38,14 +40,13 @@ export default async function handler(req, res) {
       const tasks = data.tasks || [];
     
       // Filter tasks that are considered "done".
+      // We'll consider a task "done" if:
+      //  - Its date_done is set (non-null, non-empty)
+      //  OR its status.status (after trimming and lowercasing) is "done", "closed", or "completed".
       const doneTasks = tasks.filter(task => {
-        // Check if date_done is set.
         const hasDateDone = task.date_done && task.date_done !== "" && task.date_done !== "null";
-        
-        // Normalize the task status.
         const statusStr = task.status && task.status.status ? task.status.status.trim().toLowerCase() : "";
         const statusDone = statusStr === "done" || statusStr === "closed" || statusStr === "completed";
-    
         return hasDateDone || statusDone;
       });
     
