@@ -23,6 +23,9 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Missing ClickUp configuration." });
   }
 
+  // Define the target list ID (replace this with your actual list id)
+  const TARGET_LIST_ID = "901703816668";  // e.g., "901702177418"
+
   try {
     // Fetch live tasks from the ClickUp API v2 listing endpoint.
     const response = await fetch(`https://api.clickup.com/api/v2/team/${TEAM_ID}/task`, {
@@ -39,16 +42,16 @@ export default async function handler(req, res) {
     const data = await response.json();
     const tasks = data.tasks || [];
 
-    // Filter tasks based on the "Work Party?" field.
-    // We assume that "Work Party?" is a drop-down field where the selected value is stored as a number.
-    // That number is used as an index into the field's type_config.options array.
+    // Filter tasks that either have the desired "Work Party?" values OR are in the target list.
     const filteredTasks = tasks.filter(task => {
+      let workPartyMatch = false;
+
+      // Check for the "Work Party?" custom field.
       if (task.custom_fields && Array.isArray(task.custom_fields)) {
-        // Look for the custom field named "Work Party?"
         const wpField = task.custom_fields.find(field => field.name.trim() === "Work Party?");
         if (wpField) {
-          let fieldValue = wpField.value_text;  // Try using a human-readable value first.
-          // If no value_text, check if a numeric value is set.
+          let fieldValue = wpField.value_text;  // Try human‑readable value first.
+          // If not available, check if a numeric value is set and use it as an index.
           if (!fieldValue && typeof wpField.value === "number") {
             const idx = wpField.value;
             if (wpField.type_config && Array.isArray(wpField.type_config.options) && idx >= 0 && idx < wpField.type_config.options.length) {
@@ -56,13 +59,17 @@ export default async function handler(req, res) {
             }
           }
           if (fieldValue) {
-            // Normalize the field value to lowercase for comparison.
             const normalized = fieldValue.trim().toLowerCase();
-            return normalized === "feb 2025" || normalized === "before next";
+            workPartyMatch = normalized === "feb 2025" || normalized === "before next";
           }
         }
       }
-      return false;
+
+      // Check if the task is in the target list.
+      const inTargetList = task.list && task.list.id === TARGET_LIST_ID;
+
+      // Include the task if either condition is true.
+      return workPartyMatch || inTargetList;
     });
 
     // Return the filtered tasks.
