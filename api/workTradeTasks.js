@@ -36,52 +36,56 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error(`ClickUp API error: ${response.status} - ${errorText}`);
       return res.status(response.status).json({ error: errorText });
     }
 
     const data = await response.json();
     const tasks = data.tasks || [];
+    
+    console.log(`Retrieved ${tasks.length} total tasks from ClickUp`);
 
-    // Filter tasks that are in the "V: To Do List (Misc)" list and have "work trade" tag or custom field
+    // Filter tasks that are in the "V: To Do List (Misc)" list and have "CatV" custom field set to "Work Trade"
     const filteredTasks = tasks.filter(task => {
       // Check if the task is in the target list
       const inToDoList = task.list && task.list.id === TO_DO_LIST_ID;
       
-      if (!inToDoList) {
-        return false; // Skip tasks not in the target list
-      }
+      // Check if the "CatV" custom field is set to "Work Trade"
+      let hasWorkTradeCategory = false;
       
-      let isWorkTrade = false;
-      
-      // Check for "work trade" in custom fields
+      // Check custom fields for "CatV" = "Work Trade"
       if (task.custom_fields && Array.isArray(task.custom_fields)) {
-        // Look for any custom field that might indicate work trade
-        for (const field of task.custom_fields) {
-          if (field.value_text) {
-            const value = field.value_text.trim().toLowerCase();
-            if (value === "work trade" || value.includes("work trade")) {
-              isWorkTrade = true;
-              break;
+        const catVField = task.custom_fields.find(field => field.name.trim() === "CatV");
+        if (catVField) {
+          let fieldValue = catVField.value_text;  // Try human‑readable value first
+          
+          // If not available, check if a numeric value is set and use it as an index
+          if (!fieldValue && typeof catVField.value === "number") {
+            const idx = catVField.value;
+            if (catVField.type_config && Array.isArray(catVField.type_config.options) && 
+                idx >= 0 && idx < catVField.type_config.options.length) {
+              fieldValue = catVField.type_config.options[idx].name;
             }
+          }
+          
+          if (fieldValue) {
+            hasWorkTradeCategory = fieldValue.trim() === "Work Trade";
           }
         }
       }
       
-      // Check for "work trade" in tags
-      if (!isWorkTrade && task.tags && Array.isArray(task.tags)) {
-        isWorkTrade = task.tags.some(tag => 
-          tag.name.trim().toLowerCase() === "work trade" || 
-          tag.name.trim().toLowerCase().includes("work trade")
-        );
-      }
-      
-      // Check for "work trade" in the task name
-      if (!isWorkTrade && task.name) {
-        isWorkTrade = task.name.toLowerCase().includes("work trade");
-      }
-      
-      return isWorkTrade;
+      return inToDoList && hasWorkTradeCategory;
     });
+
+    console.log(`Filtered to ${filteredTasks.length} Work Trade tasks`);
+    
+    // Log the first few tasks for verification
+    if (filteredTasks.length > 0) {
+      console.log('Sample Work Trade tasks:');
+      filteredTasks.slice(0, 3).forEach(task => {
+        console.log(`- ${task.name} (ID: ${task.id})`);
+      });
+    }
 
     // Return the filtered work trade tasks
     return res.status(200).json({ tasks: filteredTasks });
