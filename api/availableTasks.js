@@ -42,35 +42,38 @@ export default async function handler(req, res) {
     
     console.log(`Retrieved ${tasks.length} total tasks from ClickUp`);
 
-    // Filter tasks that have an "Area" custom field assigned
+    // Filter tasks that have any field that might represent an area
     const filteredTasks = tasks.filter(task => {
       if (!task.custom_fields || !Array.isArray(task.custom_fields)) {
         return false;
       }
       
-      // Check for the "Area" custom field
-      const areaField = task.custom_fields.find(field => 
-        field.name && field.name.trim() === "Area"
-      );
-      
-      if (!areaField) {
-        return false;
-      }
-      
-      // Check if the area field has a value
-      let hasArea = false;
-      
-      if (areaField.value_text) {
-        hasArea = true;
-      } else if (typeof areaField.value === "number") {
-        const idx = areaField.value;
-        if (areaField.type_config && Array.isArray(areaField.type_config.options) && 
-            idx >= 0 && idx < areaField.type_config.options.length) {
-          hasArea = true;
+      // Check for any custom field that could represent an area
+      return task.custom_fields.some(field => {
+        // Skip fields without names
+        if (!field.name) {
+          return false;
         }
-      }
-      
-      return hasArea;
+        
+        // Check if field name contains "Area" (case insensitive)
+        const fieldName = field.name.trim();
+        if (fieldName.toLowerCase().includes("area")) {
+          // Check if field has a value
+          if (field.value_text) {
+            console.log(`Found task with ${fieldName}=${field.value_text}: ${task.name}`);
+            return true;
+          } else if (typeof field.value === "number") {
+            const idx = field.value;
+            if (field.type_config && Array.isArray(field.type_config.options) && 
+                idx >= 0 && idx < field.type_config.options.length) {
+              console.log(`Found task with ${fieldName}=${field.type_config.options[idx].name}: ${task.name}`);
+              return true;
+            }
+          }
+        }
+        
+        return false;
+      });
     });
     
     console.log(`Filtered to ${filteredTasks.length} tasks with Area assigned`);

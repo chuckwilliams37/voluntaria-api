@@ -42,19 +42,42 @@
   // Helper function to extract a custom field value (for drop_down fields)
   function getCustomFieldValue(task, fieldName) {
     if (!task.custom_fields) return null;
-    const field = task.custom_fields.find(f => f.name && f.name.trim() === fieldName);
-    if (!field) return null;
-    // If a human-readable value is provided (value_text), use it.
-    if (field.value_text) {
-      return field.value_text.trim();
-    }
-    // Otherwise, if "value" is a number, treat it as an index into the options array.
-    if (typeof field.value === "number" && field.type_config && Array.isArray(field.type_config.options)) {
-      const idx = field.value;
-      if (idx >= 0 && idx < field.type_config.options.length) {
-        return field.type_config.options[idx].name.trim();
+    
+    // Look for exact match first
+    const exactField = task.custom_fields.find(f => f.name && f.name.trim() === fieldName);
+    if (exactField) {
+      // If a human-readable value is provided (value_text), use it.
+      if (exactField.value_text) {
+        return exactField.value_text.trim();
+      }
+      // Otherwise, if "value" is a number, treat it as an index into the options array.
+      if (typeof exactField.value === "number" && exactField.type_config && Array.isArray(exactField.type_config.options)) {
+        const idx = exactField.value;
+        if (idx >= 0 && idx < exactField.type_config.options.length) {
+          return exactField.type_config.options[idx].name.trim();
+        }
       }
     }
+    
+    // If no exact match, check for field that contains the fieldName (case insensitive)
+    const containsField = task.custom_fields.find(f => 
+      f.name && f.name.trim().toLowerCase().includes(fieldName.toLowerCase())
+    );
+    
+    if (containsField) {
+      // If a human-readable value is provided (value_text), use it.
+      if (containsField.value_text) {
+        return containsField.value_text.trim();
+      }
+      // Otherwise, if "value" is a number, treat it as an index into the options array.
+      if (typeof containsField.value === "number" && containsField.type_config && Array.isArray(containsField.type_config.options)) {
+        const idx = containsField.value;
+        if (idx >= 0 && idx < containsField.type_config.options.length) {
+          return containsField.type_config.options[idx].name.trim();
+        }
+      }
+    }
+    
     return null;
   }
 
@@ -90,7 +113,7 @@
         // Group tasks by the Area custom field
         const groups = {};
         tasks.forEach(task => {
-          const area = getCustomFieldValue(task, "Area") || "Uncategorized";
+          const area = getCustomFieldValue(task, "Area") || getCustomFieldValue(task, "area") || "Uncategorized";
           if (!groups[area]) {
             groups[area] = [];
           }
