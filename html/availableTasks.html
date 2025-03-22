@@ -110,14 +110,14 @@
           return;
         }
 
-        // Group tasks by the Area custom field
+        // Group tasks by the CatV custom field
         const groups = {};
         tasks.forEach(task => {
-          const area = getCustomFieldValue(task, "Area") || getCustomFieldValue(task, "area") || "Uncategorized";
-          if (!groups[area]) {
-            groups[area] = [];
+          const category = getCustomFieldValue(task, "CatV") || "Uncategorized";
+          if (!groups[category]) {
+            groups[category] = [];
           }
-          groups[area].push(task);
+          groups[category].push(task);
         });
         
         // Sort the group keys alphabetically.

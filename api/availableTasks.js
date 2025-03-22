@@ -42,41 +42,45 @@ export default async function handler(req, res) {
     
     console.log(`Retrieved ${tasks.length} total tasks from ClickUp`);
 
-    // Filter tasks that have any field that might represent an area
+    // Filter tasks that have a CatV custom field with a value
     const filteredTasks = tasks.filter(task => {
       if (!task.custom_fields || !Array.isArray(task.custom_fields)) {
         return false;
       }
       
-      // Check for any custom field that could represent an area
-      return task.custom_fields.some(field => {
-        // Skip fields without names
-        if (!field.name) {
-          return false;
-        }
-        
-        // Check if field name contains "Area" (case insensitive)
-        const fieldName = field.name.trim();
-        if (fieldName.toLowerCase().includes("area")) {
-          // Check if field has a value
-          if (field.value_text) {
-            console.log(`Found task with ${fieldName}=${field.value_text}: ${task.name}`);
-            return true;
-          } else if (typeof field.value === "number") {
-            const idx = field.value;
-            if (field.type_config && Array.isArray(field.type_config.options) && 
-                idx >= 0 && idx < field.type_config.options.length) {
-              console.log(`Found task with ${fieldName}=${field.type_config.options[idx].name}: ${task.name}`);
-              return true;
-            }
-          }
-        }
-        
+      // Look for CatV field
+      const catVField = task.custom_fields.find(field => 
+        field.name && field.name.trim() === "CatV"
+      );
+      
+      if (!catVField) {
         return false;
-      });
+      }
+      
+      // Check if the field has a value
+      let hasValue = false;
+      let fieldValue = null;
+      
+      if (catVField.value_text) {
+        hasValue = true;
+        fieldValue = catVField.value_text.trim();
+      } else if (typeof catVField.value === "number") {
+        const idx = catVField.value;
+        if (catVField.type_config && Array.isArray(catVField.type_config.options) && 
+            idx >= 0 && idx < catVField.type_config.options.length) {
+          hasValue = true;
+          fieldValue = catVField.type_config.options[idx].name.trim();
+        }
+      }
+      
+      if (hasValue) {
+        console.log(`Found task with CatV=${fieldValue}: ${task.name}`);
+      }
+      
+      return hasValue;
     });
     
-    console.log(`Filtered to ${filteredTasks.length} tasks with Area assigned`);
+    console.log(`Filtered to ${filteredTasks.length} tasks with CatV assigned`);
 
     // Return the filtered tasks.
     return res.status(200).json({ tasks: filteredTasks });
