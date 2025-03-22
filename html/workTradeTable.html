@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Work Trade Tasks</title>
+  <style>
+    /* Basic table styles */
+    #tasks-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: Arial, sans-serif;
+    }
+    #tasks-table th, #tasks-table td {
+      border: 1px solid #36454F; /* Charcoal */
+      padding: 8px;
+      text-align: left;
+    }
+    #tasks-table th {
+      background-color: #4682B4; /* Steel Blue */
+      color: white;
+    }
+    /* Alternate row background for clarity */
+    #tasks-table tr:nth-child(even) {
+      background-color: #F0F8FF; /* Alice Blue */
+    }
+    /* Group header row */
+    #tasks-table tr.group-header td {
+      background-color: #36454F; /* Charcoal */
+      color: white;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div id="work-trade-widget">
+    <h2>Work Trade Tasks <br />(last updated: <span id="last-updated"></span>)</h2>
+    <div id="table-container"></div>
+  </div>
+
+  <script>
+  // Helper function to extract a custom field value (for drop_down fields)
+  function getCustomFieldValue(task, fieldName) {
+    if (!task.custom_fields) return null;
+    const field = task.custom_fields.find(f => f.name.trim() === fieldName);
+    if (!field) return null;
+    // If a human-readable value is provided (value_text), use it.
+    if (field.value_text) {
+      return field.value_text.trim();
+    }
+    // Otherwise, if "value" is a number, treat it as an index into the options array.
+    if (typeof field.value === "number" && field.type_config && Array.isArray(field.type_config.options)) {
+      const idx = field.value;
+      if (idx >= 0 && idx < field.type_config.options.length) {
+        return field.type_config.options[idx].name.trim();
+      }
+    }
+    return null;
+  }
+
+  // Helper to get the numeric sort value from the "Priority" field.
+  // If the extracted value is numeric, return that number; otherwise, return a very high number.
+  function getPriorityValue(task) {
+    const priorityVal = getCustomFieldValue(task, "Priority");
+    if (priorityVal === null) return Infinity;
+    const num = parseInt(priorityVal, 10);
+    return isNaN(num) ? Infinity : num;
+  }
+
+  // Main function to render the table.
+  document.addEventListener("DOMContentLoaded", function() {
+    // Fetch tasks from your Vercel endpoint.
+    fetch('https://api.voluntaria.community/api/workTradeTasks?ts=' + new Date().getTime(), { cache: "no-store" })
+      .then(response => response.json())
+      .then(data => {
+        const tasks = data.tasks || [];
+        
+        // Calculate the most recent date_updated.
+        const mostRecentTimestamp = Math.max(...tasks.map(task => Number(task.date_updated) || 0));
+        const mostRecentDate = new Date(mostRecentTimestamp).toLocaleString();
+        document.getElementById("last-updated").innerText = mostRecentDate;
+
+        // First check if there are any tasks
+        if (tasks.length === 0) {
+          document.getElementById("table-container").innerHTML = "<p>No work trade tasks available at this time.</p>";
+          return;
+        }
+
+        // Group tasks by the "Location" or "Area" custom field if available
+        const groups = {};
+        tasks.forEach(task => {
+          // Try to get location first, fall back to area, then to "Uncategorized"
+          const location = getCustomFieldValue(task, "Location") || 
+                         getCustomFieldValue(task, "Area") || 
+                         "Uncategorized";
+          
+          if (!groups[location]) {
+            groups[location] = [];
+          }
+          groups[location].push(task);
+        });
+        
+        // Sort the group keys alphabetically.
+        const groupKeys = Object.keys(groups).sort();
+        
+        // For each group, sort tasks by priority if available.
+        groupKeys.forEach(key => {
+          groups[key].sort((a, b) => getPriorityValue(a) - getPriorityValue(b));
+        });
+        
+        // Build the HTML table.
+        let html = '<table id="tasks-table">';
+        html += '<thead><tr><th>Task</th><th>Description</th></tr></thead>';
+        html += '<tbody>';
+        
+        // For each group, output a header row and then each task row.
+        groupKeys.forEach(location => {
+          // Group header row spanning all columns.
+          html += `<tr class="group-header"><td colspan="2">${location}</td></tr>`;
+          
+          groups[location].forEach(task => {
+            html += `<tr>`;
+            html += `<td>${task.name}</td>`;
+            // Get description or show placeholder
+            const description = task.description ? task.description : "No description available";
+            html += `<td>${description}</td>`;
+            html += `</tr>`;
+          });
+        });
+        
+        html += '</tbody></table>';
+        
+        // Insert the table into the container.
+        document.getElementById("table-container").innerHTML = html;
+      })
+      .catch(error => {
+        console.error("Error fetching work trade tasks:", error);
+        document.getElementById("table-container").innerHTML = "<p>Error loading work trade tasks.</p>";
+      });
+  });
+  </script>
+</body>
+</html>

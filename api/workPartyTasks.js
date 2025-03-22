@@ -45,7 +45,6 @@ export default async function handler(req, res) {
     // Filter tasks that either have the desired "Work Party?" values OR are in the target list.
     const filteredTasks = tasks.filter(task => {
       let workPartyMatch = false;
-      let workTradeMatch = false;
 
       // Check for the "Work Party?" custom field.
       if (task.custom_fields && Array.isArray(task.custom_fields)) {
@@ -66,30 +65,11 @@ export default async function handler(req, res) {
         }
       }
 
-      // Check for the "Work Trade" custom field or tag.
-      if (task.custom_fields && Array.isArray(task.custom_fields)) {
-        const wtField = task.custom_fields.find(field => field.name.trim() === "Work Trade");
-        if (wtField) {
-          let fieldValue = wtField.value_text;  // Try human‑readable value first.
-          // If not available, check if a numeric value is set and use it as an index.
-          if (!fieldValue && typeof wtField.value === "number") {
-            const idx = wtField.value;
-            if (wtField.type_config && Array.isArray(wtField.type_config.options) && idx >= 0 && idx < wtField.type_config.options.length) {
-              fieldValue = wtField.type_config.options[idx].name;
-            }
-          }
-          if (fieldValue) {
-            const normalized = fieldValue.trim().toLowerCase();
-            workTradeMatch = normalized === "work trade";
-          }
-        }
-      }
-
       // Check if the task is in the target list.
       const inTargetList = task.list && task.list.id === TARGET_LIST_ID;
 
       // Include the task if either condition is true.
-      return workPartyMatch || workTradeMatch || inTargetList;
+      return workPartyMatch || inTargetList;
     });
 
     // Return the filtered tasks.
