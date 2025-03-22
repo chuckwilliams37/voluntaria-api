@@ -47,15 +47,12 @@ export default async function handler(req, res) {
 
     // Filter tasks that are in the "V: To Do List (Misc)" list and have "CatV" custom field set to "Work Trade"
     const filteredTasks = tasks.filter(task => {
-      // Check if the task is in the target list
-      const inToDoList = task.list && task.list.id === TO_DO_LIST_ID;
-      
-      // Check if the "CatV" custom field is set to "Work Trade"
+      // Check for "CatV" = "Work Trade", don't filter by list
       let hasWorkTradeCategory = false;
       
       // Check custom fields for "CatV" = "Work Trade"
       if (task.custom_fields && Array.isArray(task.custom_fields)) {
-        const catVField = task.custom_fields.find(field => field.name.trim() === "CatV");
+        const catVField = task.custom_fields.find(field => field.name && field.name.trim() === "CatV");
         if (catVField) {
           let fieldValue = catVField.value_text;  // Try human‑readable value first
           
@@ -74,7 +71,12 @@ export default async function handler(req, res) {
         }
       }
       
-      return inToDoList && hasWorkTradeCategory;
+      // Log each task and its CatV value for debugging
+      if (hasWorkTradeCategory) {
+        console.log(`Found Work Trade task: ${task.name}`);
+      }
+      
+      return hasWorkTradeCategory;
     });
 
     console.log(`Filtered to ${filteredTasks.length} Work Trade tasks`);

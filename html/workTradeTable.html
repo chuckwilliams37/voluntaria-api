@@ -86,27 +86,46 @@
           return;
         }
 
-        // Group tasks by the "Location" or "Area" custom field if available
+        // Group tasks by list name as default grouping
         const groups = {};
         tasks.forEach(task => {
-          // Try to get location first, fall back to area, then to "Uncategorized"
-          const location = getCustomFieldValue(task, "Location") || 
-                         getCustomFieldValue(task, "Area") || 
-                         "Uncategorized";
+          // Try to get location or area if available, or fall back to list name
+          let groupKey = "Uncategorized";
           
-          if (!groups[location]) {
-            groups[location] = [];
+          // Get list name if available
+          if (task.list && task.list.name) {
+            groupKey = task.list.name;
           }
-          groups[location].push(task);
+          
+          // Try custom fields if available
+          if (task.custom_fields && Array.isArray(task.custom_fields)) {
+            // Check for Location field
+            const locationField = task.custom_fields.find(field => 
+              field.name && field.name.trim() === "Location"
+            );
+            
+            if (locationField && locationField.value_text) {
+              groupKey = locationField.value_text.trim();
+            } else {
+              // Check for Area field as fallback
+              const areaField = task.custom_fields.find(field => 
+                field.name && field.name.trim() === "Area"
+              );
+              
+              if (areaField && areaField.value_text) {
+                groupKey = areaField.value_text.trim();
+              }
+            }
+          }
+          
+          if (!groups[groupKey]) {
+            groups[groupKey] = [];
+          }
+          groups[groupKey].push(task);
         });
         
         // Sort the group keys alphabetically.
         const groupKeys = Object.keys(groups).sort();
-        
-        // For each group, sort tasks by priority if available.
-        groupKeys.forEach(key => {
-          groups[key].sort((a, b) => getPriorityValue(a) - getPriorityValue(b));
-        });
         
         // Build the HTML table.
         let html = '<table id="tasks-table">';
@@ -120,9 +139,23 @@
           
           groups[location].forEach(task => {
             html += `<tr>`;
-            html += `<td>${task.name}</td>`;
-            // Get description or show placeholder
-            const description = task.description ? task.description : "No description available";
+            
+            // Create a link to the task if available
+            let taskName = task.name;
+            if (task.url) {
+              taskName = `<a href="${task.url}" target="_blank">${task.name}</a>`;
+            }
+            html += `<td>${taskName}</td>`;
+            
+            // Handle description safely
+            let description = "No description available";
+            if (task.description) {
+              // Clean and truncate the description if it's too long
+              const cleanDesc = task.description
+                .replace(/<[^>]*>/g, '') // Remove HTML tags
+                .slice(0, 200); // Limit to 200 chars
+              description = cleanDesc + (cleanDesc.length >= 200 ? '...' : '');
+            }
             html += `<td>${description}</td>`;
             html += `</tr>`;
           });
