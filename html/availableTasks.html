@@ -1,9 +1,9 @@
-<!-- Volunteer Tasks Component - Self-contained for Weebly Custom HTML box -->
+<!-- Onsite Tasks Component - Self-contained for Weebly Custom HTML box -->
 
 <!-- Style definitions -->
 <style>
   /* Main container styles */
-  .volunteer-tasks-container {
+  .onsite-tasks-container {
     max-width: 100%;
     overflow-x: hidden;
   }
@@ -58,16 +58,16 @@
     padding: 12px 10px;
   }
   /* Style for title */
-  .volunteer-tasks-container h2 {
+  .onsite-tasks-container h2 {
     color: #008000; /* Green */
     margin-bottom: 5px;
   }
   /* Style for links */
-  .volunteer-tasks-container a {
+  .onsite-tasks-container a {
     color: #0066cc;
     text-decoration: none;
   }
-  .volunteer-tasks-container a:hover {
+  .onsite-tasks-container a:hover {
     text-decoration: underline;
   }
   /* Last updated text */
@@ -219,7 +219,7 @@
 </style>
 
 <!-- Root element for React to render into -->
-<div id="volunteer-tasks-root"></div>
+<div id="onsite-tasks-root"></div>
 
 <!-- Load React, ReactDOM, and Babel inline -->
 <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
@@ -246,7 +246,7 @@
   }
   
   // Task Table Component
-  function VolunteerTasksApp() {
+  function OnsiteTasksApp() {
     const [tasks, setTasks] = React.useState([]);
     const [loading, setLoading] = React.useState(true);
     const [refreshing, setRefreshing] = React.useState(false);
@@ -415,8 +415,8 @@
 
     // Render the component
     return (
-      <div className="volunteer-tasks-container">
-        <h2>Available Volunteer Tasks</h2>
+      <div className="onsite-tasks-container">
+        <h2>Available Onsite Tasks</h2>
         <div>Last updated: <span id="last-updated">{lastUpdated}</span>
           <button 
             className="refresh-button" 
@@ -433,7 +433,7 @@
         ) : error ? (
           <div className="error-message">{error}</div>
         ) : tasks.length === 0 ? (
-          <div>No volunteer tasks available at this time.</div>
+          <div>No onsite tasks available at this time.</div>
         ) : (
           <React.Fragment>
             <div className="filter-controls">
@@ -531,7 +531,7 @@
 
   // Render the React application
   ReactDOM.render(
-    <VolunteerTasksApp />,
-    document.getElementById('volunteer-tasks-root')
+    <OnsiteTasksApp />,
+    document.getElementById('onsite-tasks-root')
   );
 </script>
